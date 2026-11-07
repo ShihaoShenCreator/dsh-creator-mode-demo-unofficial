@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Transformer 3D lab",
+    "description": "A rotatable 3D scene that steps through a Transformer's computation: embeddings, attention, feed-forward, and next-token prediction."
+  }
+}

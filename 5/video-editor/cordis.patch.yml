@@ -1,0 +1,8 @@
+# 视频剪辑工作台 bundle 补丁：插入 Host 行（导出 HTTP API + video_editor 工具），
+# 并注册对应的 web 客户端行。
+#
+# 该插件不声明 Config（画布尺寸/帧率是每个会话在「剪辑工作台」里可改的项目属性，
+# 不是部署级配置），所以这里不写 config，避免出现一个不会生效的设置项。
+- insert:
+    - id: video-editor
+      name: '@local/video-editor'

@@ -1,0 +1,4 @@
+# Transformer 3D lab bundle: one row that carries both the Host half and the Web client module.
+- insert:
+    - id: transformer-3d-lab
+      name: '@local/transformer-3d-lab'

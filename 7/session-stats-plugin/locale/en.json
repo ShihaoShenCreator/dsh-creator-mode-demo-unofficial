@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Session stats",
+    "description": "Real token consumption, session counts, estimated cost and budget, a usage timeline, per-session usage and CPU load, computed from your own session logs."
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Transformer 3D 实验台",
+    "description": "用可旋转的 3D 场景逐步演示 Transformer 的计算：词嵌入、注意力、前馈网络与下一个词预测。"
+  }
+}

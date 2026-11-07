@@ -1,0 +1,438 @@
+/*
+ * spike/spike.css — the exact subset of pdf.js 6.3.289 viewer CSS that the
+ * text layer + page canvas need, written as plain CSS (no nesting) so the
+ * later plugin bundle can inline it verbatim.
+ *
+ * Sources (pdfjs-dist 6.3.289, web/pdf_viewer.css):
+ *   .textLayer ................ lines 647-794
+ *   [data-main-rotation] ...... lines 6237-6245
+ *   .canvasWrapper ............ lines 6264-6296
+ *   .pdfViewer .page .......... lines 6299-6314  (--user-unit / --total-scale-factor / --scale-round-*)
+ *
+ * Everything prefixed .pr-* is spike-owned UI chrome.
+ */
+
+.pr-reader {
+  position: relative;
+  height: 100%;
+  overflow: auto;
+  background: #e8e9ed;
+  overscroll-behavior: contain;
+}
+
+.pr-pages {
+  display: block;
+  padding: 12px 0 48px;
+}
+
+.pr-page {
+  position: relative;
+  margin: 10px auto;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  /* pdf.js layout contract: these variables must be inherited by the page
+     subtree; the TextLayer reads --total-scale-factor + --scale-round-x/y
+     when setLayerDimensions() writes width/height, and the span CSS reads
+     --total-scale-factor for font-size. */
+  --user-unit: 1;
+  --scale-factor: 1;
+  --total-scale-factor: calc(var(--scale-factor) * var(--user-unit));
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+}
+
+.pr-page[data-page] {
+  contain: layout style;
+}
+
+.pr-canvas-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.pr-canvas-wrap > canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  contain: content;
+}
+
+/* --- highlight overlay (spike-owned) --------------------------------- */
+.pr-highlights {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.pr-highlight {
+  position: absolute;
+  background: rgba(255, 209, 0, 0.4);
+  mix-blend-mode: multiply;
+  border-radius: 2px;
+}
+
+.pr-highlight[data-color="green"] {
+  background: rgba(70, 200, 120, 0.4);
+}
+
+.pr-highlight[data-color="blue"] {
+  background: rgba(70, 140, 255, 0.4);
+}
+
+/* --- pdf.js text layer -------------------------------------------------
+ * Faithful subset of web/pdf_viewer.css lines 647-794. Do not drop any rule:
+ * a missing one shifts or hides glyph spans and therefore breaks selection.
+ */
+.textLayer {
+  color-scheme: only light;
+  position: absolute;
+  text-align: initial;
+  inset: 0;
+  overflow: clip;
+  opacity: 1;
+  line-height: 1;
+  letter-spacing: normal;
+  word-spacing: normal;
+  -webkit-text-size-adjust: none;
+  -moz-text-size-adjust: none;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  caret-color: CanvasText;
+  z-index: 3;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+
+.textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
+}
+
+.textLayer > :not(.markedContent),
+.textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x))
+    scale(var(--min-font-size-inv));
+}
+
+.textLayer .markedContent {
+  display: contents;
+}
+
+.textLayer span[role="img"] {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+.textLayer ::-moz-selection {
+  background: rgba(0, 0, 255, 0.25);
+  color: transparent;
+}
+
+.textLayer ::selection {
+  background: rgba(0, 0, 255, 0.25);
+  color: transparent;
+}
+
+.textLayer br::-moz-selection {
+  background: transparent;
+}
+
+.textLayer br::selection {
+  background: transparent;
+}
+
+.textLayer .endOfContent {
+  display: block;
+  position: absolute;
+  inset: 100% 0 0;
+  z-index: 0;
+  cursor: default;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+.textLayer.selecting .endOfContent {
+  top: 0;
+}
+
+.textLayer.selecting {
+  touch-action: none;
+}
+
+/* Rotation: pdf.js applies this to the text layer container only (the
+ * TextLayer constructor calls setLayerDimensions(container, viewport) with
+ * "mustRotate" left at its default true, which writes data-main-rotation).
+ * The page wrapper itself must NOT get this attribute. */
+[data-main-rotation="90"] {
+  transform: rotate(90deg) translateY(-100%);
+}
+
+[data-main-rotation="180"] {
+  transform: rotate(180deg) translate(-100%, -100%);
+}
+
+[data-main-rotation="270"] {
+  transform: rotate(270deg) translateX(-100%);
+}
+
+/* --- spike UI chrome -------------------------------------------------- */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #1c1d21;
+  background: #f4f5f7;
+}
+
+#app {
+  height: 100%;
+  display: flex;
+  overflow: hidden;
+}
+
+.pr-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.pr-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: #fff;
+  border-bottom: 1px solid #d9dbe1;
+}
+
+.pr-toolbar button,
+.pr-toolbar input,
+.pr-toolbar select {
+  font: inherit;
+  padding: 3px 8px;
+  border: 1px solid #c6c9d2;
+  border-radius: 6px;
+  background: #fff;
+  color: inherit;
+}
+
+.pr-toolbar button {
+  cursor: pointer;
+}
+
+.pr-toolbar button:hover {
+  background: #f2f4f8;
+}
+
+.pr-toolbar button[aria-pressed="true"] {
+  background: #e4ecff;
+  border-color: #7c9cf5;
+}
+
+.pr-toolbar input[type="search"] {
+  width: 160px;
+}
+
+.pr-toolbar .pr-spacer {
+  flex: 1 1 auto;
+}
+
+.pr-zoom-value {
+  min-width: 46px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.pr-status {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 12px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: #5a5e6a;
+  background: #fbfbfd;
+  border-bottom: 1px solid #e3e5ea;
+}
+
+.pr-status .pr-ok {
+  color: #1c7c46;
+}
+
+.pr-status .pr-bad {
+  color: #b42318;
+}
+
+.pr-reader-host {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+}
+
+/* Floating selection menu (the real plugin renders this as React). */
+.pr-float-menu {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 8px;
+  background: #1f2430;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+  transform: translate(-50%, -100%);
+}
+
+.pr-float-menu button {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #f4f6fb;
+  cursor: pointer;
+}
+
+.pr-float-menu button:hover {
+  background: #39415a;
+}
+
+/* Right sidebar mock: proves the narrow-width layout of the real plugin. */
+.pr-sidebar {
+  flex: 0 0 384px;
+  max-width: 384px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #fff;
+  border-left: 1px solid #d9dbe1;
+  overflow: hidden;
+}
+
+.pr-sidebar-header {
+  padding: 10px 12px;
+  font-weight: 600;
+  border-bottom: 1px solid #e3e5ea;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pr-sidebar-body {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pr-sidebar h3 {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6a6f7d;
+}
+
+.pr-highlight-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pr-highlight-list li {
+  border: 1px solid #e2e5ec;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #fcfcfe;
+  font-size: 12px;
+}
+
+.pr-highlight-list .pr-quote {
+  color: #333844;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pr-highlight-list .pr-meta {
+  margin-top: 4px;
+  color: #7a8090;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.pr-highlight-list button {
+  font: inherit;
+  font-size: 11px;
+  padding: 1px 6px;
+  border: 1px solid #d3d7e0;
+  border-radius: 5px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.pr-ask-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pr-ask-box textarea {
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid #c6c9d2;
+  border-radius: 8px;
+}
+
+.pr-empty {
+  color: #8b90a0;
+  font-size: 12px;
+}
+
+.pr-spike-note {
+  font-size: 11px;
+  color: #7a8090;
+  border-top: 1px dashed #e3e5ea;
+  padding-top: 8px;
+  line-height: 1.45;
+}

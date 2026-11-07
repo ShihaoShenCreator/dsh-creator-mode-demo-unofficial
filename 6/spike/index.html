@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Paper Reader — pdf.js faithful rendering spike</title>
+  <link rel="stylesheet" href="./spike.css" />
+</head>
+<body>
+  <div id="app">
+    <main class="pr-main">
+      <div class="pr-toolbar" role="toolbar" aria-label="Reader controls">
+        <button id="btn-prev" title="Previous page" type="button">◀</button>
+        <button id="btn-next" title="Next page" type="button">▶</button>
+        <span class="pr-zoom-value" id="zoom-value">100%</span>
+        <button id="btn-zoom-out" title="Zoom out" type="button">−</button>
+        <button id="btn-zoom-in" title="Zoom in" type="button">+</button>
+        <button id="btn-fit-width" title="Fit width" type="button">Fit width</button>
+        <button id="btn-fit-page" title="Fit page" type="button">Fit page</button>
+        <input id="search-input" type="search" placeholder="Search in document…" aria-label="Search in document" />
+        <button id="btn-search" type="button">Find</button>
+        <span class="pr-spacer"></span>
+        <label id="highlight-mode-wrap" title="Paint highlight rectangles over a fresh selection">
+          <input type="checkbox" id="chk-highlight-mode" checked /> highlight on select
+        </label>
+        <button id="btn-clear-highlights" type="button">Clear highlights</button>
+      </div>
+      <div class="pr-status" id="status">
+        <span id="status-file">no document</span>
+        <span id="status-pages"></span>
+        <span id="status-rendered"></span>
+        <span id="status-sel"></span>
+      </div>
+      <div class="pr-reader-host" id="reader-host"></div>
+    </main>
+
+    <aside class="pr-sidebar" aria-label="Paper sidebar mock">
+      <div class="pr-sidebar-header">Paper</div>
+      <div class="pr-sidebar-body">
+        <section>
+          <h3>Document</h3>
+          <div id="doc-meta" class="pr-empty">Loading spike sample…</div>
+        </section>
+        <section>
+          <h3>Highlights <span id="hl-count">(0)</span></h3>
+          <ul class="pr-highlight-list" id="hl-list"></ul>
+          <div class="pr-empty" id="hl-empty">Select text, then use “Highlight” in the floating menu.</div>
+        </section>
+        <section>
+          <h3>Ask in chat (mock)</h3>
+          <div class="pr-ask-box">
+            <textarea id="ask-text" placeholder="Selection will be quoted here…"></textarea>
+            <button id="btn-ask" type="button">Send to chat (mock)</button>
+          </div>
+        </section>
+        <p class="pr-spike-note">
+          This page is the <b>visual harness</b> only. The rendering core lives in
+          <code>spike.js</code> as <code>createPdfReader()</code> with no React and no
+          npm imports, so the same file can be dropped into a plain-JS DSH client
+          plugin. All pdf.js assets are local; the page makes no network requests
+          beyond its own files.
+        </p>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Floating selection menu — the real plugin renders this as React. -->
+  <div class="pr-float-menu" id="float-menu" hidden>
+    <button type="button" data-action="highlight">Highlight</button>
+    <button type="button" data-action="note">Note</button>
+    <button type="button" data-action="ask">Ask in chat</button>
+  </div>
+
+  <script type="module">
+    import { createPdfReader } from './spike.js';
+
+    /*
+     * Asset URLs. All local: spike/vendor/ holds an unmodified subset of
+     * pdfjs-dist 6.3.289 (build/pdf.min.mjs, build/pdf.worker.min.mjs, cmaps/,
+     * standard_fonts/, wasm/, iccs/). Trailing slashes are REQUIRED by
+     * getFactoryUrlProp (pdf.mjs:8700) — pdf.js throws otherwise.
+     */
+    const base = new URL('./vendor/', import.meta.url);
+    const pdfjsLib = await import(new URL('build/pdf.min.mjs', base).href);
+
+    const reader = createPdfReader({
+      pdfjsLib,
+      workerSrc: new URL('build/pdf.worker.min.mjs', base).href,
+      cMapUrl: new URL('cmaps/', base).href,
+      standardFontDataUrl: new URL('standard_fonts/', base).href,
+      wasmUrl: new URL('wasm/', base).href,
+      iccUrl: new URL('iccs/', base).href,
+      container: document.getElementById('reader-host'),
+      onSelection: handleSelection,
+    });
+    window.__reader = reader; // headless verification handle
+    window.__spikeReady = false;
+    window.__spikeErrors = [];
+    window.addEventListener('error', (e) => window.__spikeErrors.push(String(e.message || e.error)));
+    window.addEventListener('unhandledrejection', (e) => window.__spikeErrors.push(String(e.reason)));
+
+    /* ------------------------------------------------------------------ */
+    /* demo UI                                                             */
+    /* ------------------------------------------------------------------ */
+    const $ = (id) => document.getElementById(id);
+    const zoomValue = $('zoom-value');
+    const statusFile = $('status-file');
+    const statusPages = $('status-pages');
+    const statusRendered = $('status-rendered');
+    const statusSel = $('status-sel');
+    const floatMenu = $('float-menu');
+    const hlList = $('hl-list');
+    const hlEmpty = $('hl-empty');
+    const hlCount = $('hl-count');
+    const docMeta = $('doc-meta');
+    const askText = $('ask-text');
+
+    let currentSelection = null;
+    let highlightMode = true;
+    let currentPage = 1;
+
+    function refreshStatus() {
+      const state = reader.getDebugState();
+      zoomValue.textContent = `${Math.round(state.zoom * 100)}%`;
+      statusPages.textContent = state.numPages ? `${state.numPages} pages` : '';
+      statusRendered.textContent = state.numPages
+        ? `rendered: ${state.renderedPages.join(', ') || 'none'}`
+        : '';
+      const rendered = state.renderedPages.length;
+      statusRendered.className = rendered ? 'pr-ok' : '';
+    }
+
+    function renderHighlightList() {
+      const items = reader.getHighlights();
+      hlCount.textContent = `(${items.length})`;
+      hlEmpty.hidden = items.length > 0;
+      hlList.replaceChildren();
+      for (const item of items) {
+        const li = document.createElement('li');
+        li.setAttribute('data-highlight-id', item.id);
+        const quote = document.createElement('div');
+        quote.className = 'pr-quote';
+        quote.textContent = item.text || '(no text)';
+        const meta = document.createElement('div');
+        meta.className = 'pr-meta';
+        meta.textContent = `p.${item.page} · ${item.color}`;
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.textContent = 'Delete';
+        del.addEventListener('click', () => {
+          reader.removeHighlight(item.id);
+          renderHighlightList();
+          refreshStatus();
+        });
+        meta.append(del);
+        li.append(quote, meta);
+        li.addEventListener('click', (e) => {
+          if (e.target === del) return;
+          reader.scrollToPage(item.page, { align: 'nearest' });
+        });
+        hlList.append(li);
+      }
+    }
+
+    function handleSelection(sel) {
+      currentSelection = sel;
+      statusSel.textContent = sel
+        ? `sel p.${sel.pageNumber}: ${sel.text.trim().slice(0, 40)}${
+            sel.text.trim().length > 40 ? '…' : ''
+          } (${sel.rects.length} rects)`
+        : '';
+      if (!sel) {
+        floatMenu.hidden = true;
+        return;
+      }
+      // Anchor the menu above the first selection rect, in client coordinates.
+      const a = sel.anchorRect;
+      floatMenu.hidden = false;
+      const menuWidth = 240; // rough; clamped to the viewport below
+      const left = Math.min(
+        Math.max(menuWidth / 2 + 8, a.left + a.width / 2),
+        window.innerWidth - menuWidth / 2 - 8,
+      );
+      floatMenu.style.left = `${left}px`;
+      floatMenu.style.top = `${Math.max(44, a.top - 6)}px`;
+      reader.scrollToPage(sel.pageNumber, { align: 'nearest' });
+    }
+
+    function addHighlightFromSelection(selection) {
+      if (!selection || !selection.rects?.length) return null;
+      // One highlight record per page covered by the selection (a selection
+      // spanning two pages becomes two records, which is what the sidebar
+      // list wants to show).
+      const byPage = new Map();
+      for (const rect of selection.rects) {
+        if (!rect.pdfRect) continue;
+        const current = byPage.get(rect.page);
+        if (!current) {
+          byPage.set(rect.page, { x1: rect.pdfRect.x1, y1: rect.pdfRect.y1, x2: rect.pdfRect.x2, y2: rect.pdfRect.y2 });
+        } else {
+          current.x1 = Math.min(current.x1, rect.pdfRect.x1);
+          current.y1 = Math.min(current.y1, rect.pdfRect.y1);
+          current.x2 = Math.max(current.x2, rect.pdfRect.x2);
+          current.y2 = Math.max(current.y2, rect.pdfRect.y2);
+        }
+      }
+      const created = [];
+      for (const [page, pdfRect] of byPage) {
+        created.push(
+          reader.addHighlight({ page, pdfRect, text: selection.text.trim(), color: 'yellow' }),
+        );
+      }
+      renderHighlightList();
+      refreshStatus();
+      return created[0] || null;
+    }
+
+    floatMenu.addEventListener('click', (e) => {
+      const action = e.target.closest('button')?.dataset.action;
+      if (!action) return;
+      const sel = currentSelection || reader.getSelection();
+      if (action === 'highlight') {
+        addHighlightFromSelection(sel);
+      } else if (action === 'note') {
+        const note = window.prompt('Note for this selection:', '');
+        if (note) {
+          const created = addHighlightFromSelection(sel);
+          if (created) {
+            const items = reader.getHighlights().map((h) =>
+              h.id === created.id ? { ...h, note } : h,
+            );
+            reader.renderHighlights(items);
+            renderHighlightList();
+          }
+        }
+      } else if (action === 'ask') {
+        if (sel) {
+          askText.value = `> ${sel.text.trim()}\n\n`;
+          askText.focus();
+        }
+      }
+      floatMenu.hidden = true;
+    });
+
+    document.addEventListener('pointerdown', (e) => {
+      if (!floatMenu.hidden && !floatMenu.contains(e.target)) floatMenu.hidden = true;
+    });
+
+    // Auto-highlight on select (demonstrates the "highlight" path without a
+    // click; the checkbox turns it off so manual menu use can be checked).
+    $('chk-highlight-mode').addEventListener('change', (e) => {
+      highlightMode = e.target.checked;
+    });
+    let lastAutoHighlighted = '';
+    document.addEventListener('mouseup', () => {
+      if (!highlightMode) return;
+      window.setTimeout(() => {
+        const sel = reader.getSelection();
+        if (!sel) return;
+        const key = `${sel.pageNumber}|${sel.text}`;
+        if (key === lastAutoHighlighted) return;
+        lastAutoHighlighted = key;
+        addHighlightFromSelection(sel);
+      }, 0);
+    });
+
+    $('btn-clear-highlights').addEventListener('click', () => {
+      reader.renderHighlights([]);
+      renderHighlightList();
+      refreshStatus();
+    });
+
+    $('btn-zoom-in').addEventListener('click', () => {
+      reader.setScale(reader.getScale() * 1.2, { anchorPageNumber: currentPage });
+      refreshStatus();
+    });
+    $('btn-zoom-out').addEventListener('click', () => {
+      reader.setScale(reader.getScale() / 1.2, { anchorPageNumber: currentPage });
+      refreshStatus();
+    });
+    $('btn-fit-width').addEventListener('click', () => {
+      reader.fitWidth(currentPage);
+      refreshStatus();
+    });
+    $('btn-fit-page').addEventListener('click', () => {
+      reader.setScale(1);
+      refreshStatus();
+    });
+    $('btn-prev').addEventListener('click', () => {
+      currentPage = Math.max(1, currentPage - 1);
+      reader.scrollToPage(currentPage);
+      refreshStatus();
+    });
+    $('btn-next').addEventListener('click', () => {
+      currentPage = Math.min(reader.getDebugState().numPages || 1, currentPage + 1);
+      reader.scrollToPage(currentPage);
+      refreshStatus();
+    });
+    $('btn-ask').addEventListener('click', () => {
+      // Mock: the real plugin calls the conversation composer here.
+      alert(`(mock) ask in chat:\n\n${askText.value.slice(0, 200)}`);
+    });
+
+    $('btn-search').addEventListener('click', runSearch);
+    $('search-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') runSearch();
+    });
+
+    async function runSearch() {
+      const query = $('search-input').value;
+      const result = await reader.search(query);
+      if (!result.query) {
+        statusSel.textContent = '';
+        return;
+      }
+      statusSel.textContent = result.total
+        ? `${result.total} match${result.total === 1 ? '' : 'es'} for “${query}”`
+        : `no match for “${query}”`;
+      if (!result.total) return;
+      const first = result.matches[0];
+      reader.scrollToPage(first.page, { align: 'nearest' });
+      currentPage = first.page;
+      const rects = await reader.getMatchRects(first);
+      window.__lastMatchRects = rects;
+      if (rects.length) {
+        // Paint search hits with the highlight layer but tagged separately so
+        // the persisted list is untouched.
+        const items = reader.getHighlights().concat(
+          rects.map((r, i) => ({
+            id: `search-${i}`,
+            page: r.page,
+            pdfRect: r.pdfRect,
+            color: 'blue',
+            text: first.matchedText,
+          })),
+        );
+        window.__searchHighlightItems = items;
+        renderHighlightList();
+      }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* boot                                                                */
+    /* ------------------------------------------------------------------ */
+    try {
+      const res = await fetch('./sample/sample.pdf');
+      if (!res.ok) throw new Error(`sample fetch failed: ${res.status}`);
+      const buf = new Uint8Array(await res.arrayBuffer());
+      const info = await reader.open({ data: buf });
+      docMeta.textContent =
+        `${info.numPages} pages · ${Math.round(info.pageWidths[0])}×${Math.round(info.pageHeights[0])} pt`;
+      reader.fitWidth(1);
+      refreshStatus();
+      renderHighlightList();
+      window.__spikeReady = true;
+    } catch (err) {
+      window.__spikeErrors.push(String(err && err.stack ? err.stack : err));
+      statusFile.textContent = `load failed: ${err.message || err}`;
+      docMeta.textContent = 'Failed to load the sample PDF. See console.';
+    }
+  </script>
+</body>
+</html>

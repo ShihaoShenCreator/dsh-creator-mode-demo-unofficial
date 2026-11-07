@@ -1,0 +1,106 @@
+{
+  "file": "sample.pdf",
+  "pdfjsVersion": "6.3.289",
+  "pageWidthPt": 612,
+  "pageHeightPt": 792,
+  "numPages": 4,
+  "pages": [
+    {
+      "page": 1,
+      "rotate": 0,
+      "texts": [
+        "Paper Reader Spike",
+        "Helvetica-Bold",
+        "FlateDecode RGB image"
+      ],
+      "fontPx": {
+        "Paper Reader Spike": 20
+      },
+      "images": [
+        {
+          "pdfRect": [
+            72,
+            430,
+            200,
+            558
+          ],
+          "expectedRgb": [
+            128,
+            128,
+            128
+          ]
+        }
+      ]
+    },
+    {
+      "page": 2,
+      "rotate": 0,
+      "texts": [
+        "Text extraction and normalisation",
+        "non-breaking",
+        "en dash"
+      ]
+    },
+    {
+      "page": 3,
+      "rotate": 0,
+      "texts": [
+        "CJK text",
+        "中文检索测试跨语言排版"
+      ]
+    },
+    {
+      "page": 4,
+      "rotate": 90,
+      "texts": [
+        "Rotated page",
+        "JPEG2000"
+      ],
+      "images": [
+        {
+          "pdfRect": [
+            72,
+            470,
+            232,
+            630
+          ],
+          "expectedRgb": [
+            128,
+            128,
+            90
+          ]
+        }
+      ]
+    }
+  ],
+  "searchSamples": [
+    {
+      "query": "Paper Reader Spike",
+      "page": 1
+    },
+    {
+      "query": "text extraction",
+      "page": 2
+    },
+    {
+      "query": "cjk text",
+      "page": 3
+    },
+    {
+      "query": "jpeg2000 image",
+      "page": 4
+    },
+    {
+      "query": "whitespace collapsing",
+      "page": 2
+    },
+    {
+      "query": "non-breaking space",
+      "page": 2
+    }
+  ],
+  "selectionSample": {
+    "page": 1,
+    "needle": "Faithful layout"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "@local/paper-reader",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Paper reader in the right sidebar: faithful PDF rendering, selectable text with highlight / note / ask-in-session actions",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "DELIVERY.md",
+    "locale/*.json",
+    "icon.svg",
+    "vendor/**"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-sidebar-right",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
+    }
+  }
+}

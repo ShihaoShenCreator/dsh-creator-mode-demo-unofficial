@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Video editing workbench">
+  <rect x="4" y="4" width="120" height="120" rx="24" fill="#111318" stroke="#2a2f3a" stroke-width="2"/>
+  <rect x="18" y="22" width="92" height="52" rx="8" fill="#0a0b0e" stroke="#38404f" stroke-width="2"/>
+  <path d="M52 38 L76 48 L52 58 Z" fill="#4c8dff"/>
+  <rect x="18" y="82" width="92" height="26" rx="6" fill="#171a21" stroke="#2b3140" stroke-width="2"/>
+  <rect x="24" y="89" width="20" height="12" rx="3" fill="#4c8dff"/>
+  <rect x="48" y="89" width="30" height="12" rx="3" fill="#2f3a4d"/>
+  <rect x="82" y="89" width="22" height="12" rx="3" fill="#2f3a4d"/>
+  <path d="M38 82 L38 108" stroke="#ff5d5d" stroke-width="3"/>
+  <path d="M33 82 L43 82" stroke="#ff5d5d" stroke-width="4"/>
+  <path d="M20 14 L20 20 M20 14 L26 14" stroke="#5ad3a0" stroke-width="2"/>
+</svg>

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Video editing workbench",
+    "description": "Open a video editing workbench inside the conversation: import several videos, trim and arrange them on a timeline, preview, export with ffmpeg, and drive edits with natural language."
+  }
+}

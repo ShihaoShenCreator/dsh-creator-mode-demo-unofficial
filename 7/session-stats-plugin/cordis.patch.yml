@@ -1,0 +1,32 @@
+# `dsh-session-stats-panel` — profile patch layer.
+# Prices are currency units per 1,000,000 tokens and mirror the DeepSeek CNY
+# catalogue (off-peak tier): cache miss = input, cache hit = cache read, output.
+- insert:
+    - id: session-stats-panel
+      name: dsh-session-stats-panel
+      config:
+        budget:
+          amount: 50
+          currency: CNY
+          period: month
+        defaultPrice:
+          input: 1
+          output: 4
+          cacheRead: 0.02
+          cacheWrite: 0
+        prices:
+          deepseek-flash:
+            input: 1
+            output: 4
+            cacheRead: 0.02
+            cacheWrite: 0
+          deepseek-v4.1-flash:
+            input: 1
+            output: 4
+            cacheRead: 0.02
+            cacheWrite: 0
+          deepseek-v4-pro:
+            input: 4.5
+            output: 13.5
+            cacheRead: 0.15
+            cacheWrite: 0

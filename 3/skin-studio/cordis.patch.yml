@@ -1,0 +1,4 @@
+# Skin studio bundle patch: inserts its Host row (which carries the client half).
+- insert:
+    - id: skin-studio
+      name: '@local/dsh-skin-studio'
